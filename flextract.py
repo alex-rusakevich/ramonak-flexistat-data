@@ -48,7 +48,7 @@ def extract_stem_data(ncorp_xml_path) -> Tuple[List[str], List[str]]:
 
         processed_forms = []
 
-        if "-" in processed_variant_lemma:
+        if "-" in processed_variant_lemma or " " in processed_variant_lemma:
             continue
 
         if (
@@ -104,18 +104,29 @@ def build_stem_data():
         rm_pkg_path("@bnkorpus/grammar_db/20230920")
     )
 
-    max_count = flexions_and_count[0][1]
+    flexions = list(i[0] for i in flexions_and_count)
 
-    flexions_and_count = map(
-        lambda x: (x[0], round(x[1] / max_count, 2)), flexions_and_count
-    )
-    flexions_and_count = tuple(filter(lambda x: x[1] > 0, flexions_and_count))
+    # region Filter out flexions which end with other flexions
+    for i, orig_flexion in enumerate(flexions):
+        if orig_flexion is None:
+            continue
 
-    print("Valuable flexions: {}".format(len(flexions_and_count)))
+        for k, flexion in enumerate(flexions[i:]):
+            k += i
+
+            if flexion is None:
+                continue
+            if orig_flexion == flexion:
+                continue
+            elif flexion.endswith(orig_flexion):
+                flexions[k] = None
+
+    flexions = tuple(filter(lambda x: x is not None, flexions))
+    # endregion
+
+    print("Valuable flexions: {}".format(len(flexions)))
 
     Path("./build").mkdir(exist_ok=True, parents=True)
-
-    flexions = tuple(i[0] for i in flexions_and_count)
 
     unchangeable_words = sorted(unchangeable_words)
     unchangeable_words = sorted(unchangeable_words, key=lambda x: len(x))
