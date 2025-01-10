@@ -107,7 +107,7 @@ def build_stem_data():
     max_count = flexions_and_count[0][1]
 
     flexions_and_count = map(
-        lambda x: (x[0], round(x[1] / max_count, 1)), flexions_and_count
+        lambda x: (x[0], round(x[1] / max_count, 2)), flexions_and_count
     )
     flexions_and_count = tuple(filter(lambda x: x[1] > 0, flexions_and_count))
 
@@ -115,8 +115,7 @@ def build_stem_data():
 
     Path("./build").mkdir(exist_ok=True, parents=True)
 
-    flexions = sorted([i[0] for i in flexions_and_count])
-    flexions = sorted(flexions, key=lambda x: len(x), reverse=True)
+    flexions = tuple(i[0] for i in flexions_and_count)
 
     unchangeable_words = sorted(unchangeable_words)
     unchangeable_words = sorted(unchangeable_words, key=lambda x: len(x))
@@ -137,7 +136,7 @@ def zip_results():
 
     tz = pytz.timezone("Europe/Minsk")
     minsk_now = datetime.now(tz)
-    file_date_mark = f"{minsk_now:%Y%m%d}"
+    file_date_mark = f"{minsk_now:%Y%m%d_%H%M%S}"
 
     file_name = "./dist/STEMDATA_{}.zip".format(file_date_mark)
 
