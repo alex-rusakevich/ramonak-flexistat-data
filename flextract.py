@@ -104,7 +104,12 @@ def build_stem_data():
         rm_pkg_path("@bnkorpus/grammar_db/20230920")
     )
 
-    flexions = list(i[0] for i in flexions_and_count)
+    max_count = flexions_and_count[0][1]
+
+    # region Filter out every flexion with less than a percent
+    flexions = filter(lambda x: (round(x[1] / max_count, 2) > 0), flexions_and_count)
+    flexions = list(i[0] for i in flexions)
+    # endregion
 
     # region Filter out flexions which end with other flexions
     for i, orig_flexion in enumerate(flexions):
