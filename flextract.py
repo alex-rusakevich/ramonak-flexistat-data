@@ -1,8 +1,8 @@
 import gc
+import itertools
 import zipfile
 from collections import Counter
 from datetime import datetime
-from os.path import commonprefix
 from pathlib import Path
 from typing import List, Tuple
 
@@ -10,12 +10,25 @@ import pytz
 from lxml import etree
 from ramonak.packages.actions import package_path as rm_pkg_path
 from ramonak.packages.actions import require
+from ramonak.stemmer import SimpleStemmer
 
 require("@bnkorpus/grammar_db/20230920")
+
+fix_lang_phenomenons = SimpleStemmer.fix_lang_phenomenons
+
+
+def commonprefix(words):
+    def all_same(x):
+        return all(x[0] == y for y in x)
+
+    char_tuples = zip(*words)
+    prefix_tuples = itertools.takewhile(all_same, char_tuples)
+    return "".join(x[0] for x in prefix_tuples)
 
 
 def find_flexions(words) -> List[str]:
     common_prefix = commonprefix(words)
+
     flexions = []
 
     if common_prefix == "":
@@ -61,7 +74,9 @@ def extract_stem_data(ncorp_xml_path) -> Tuple[List[str], List[str]]:
         for form in variant.findall("Form"):
             processed_forms.append(form.text.replace("+", ""))
 
-        flexions = find_flexions((processed_variant_lemma, *processed_forms))
+        all_word_forms = (processed_variant_lemma, *processed_forms)
+
+        flexions = find_flexions([fix_lang_phenomenons(w) for w in all_word_forms])
         flexions_in_file.extend(flexions)
 
     return flexions_in_file, unchangeable_words
@@ -94,8 +109,6 @@ def xml_stem_data_stats(xml_dir_path: str) -> Tuple[Tuple[str, int], Tuple[str]]
         )
     )
 
-    flexions_and_count = sorted(flexions_and_count, key=lambda x: x[1], reverse=True)
-
     return flexions_and_count, unchangeable_words
 
 
@@ -104,30 +117,18 @@ def build_stem_data():
         rm_pkg_path("@bnkorpus/grammar_db/20230920")
     )
 
-    max_count = flexions_and_count[0][1]
+    # Occurance first (more...less), length (max...min) - second
+    flexions_and_count = sorted(flexions_and_count, key=lambda x: x[1], reverse=True)
 
-    # region Filter out every flexion with less than a percent
-    flexions = filter(lambda x: (round(x[1] / max_count, 2) > 0), flexions_and_count)
-    flexions = list(i[0] for i in flexions)
-    # endregion
+    flexions_total = sum(i[1] for i in flexions_and_count)
+    flexions_and_count = (
+        filter(  # Leave only flexions, which take at least 0.01% of all flexions
+            lambda x: round(x[1] / flexions_total, 4) > 0, flexions_and_count
+        )
+    )
 
-    # region Filter out flexions which end with other flexions
-    for i, orig_flexion in enumerate(flexions):
-        if orig_flexion is None:
-            continue
-
-        for k, flexion in enumerate(flexions[i:]):
-            k += i
-
-            if flexion is None:
-                continue
-            if orig_flexion == flexion:
-                continue
-            elif flexion.endswith(orig_flexion):
-                flexions[k] = None
-
-    flexions = tuple(filter(lambda x: x is not None, flexions))
-    # endregion
+    flexions = list(i[0] for i in flexions_and_count)
+    flexions = sorted(flexions, key=lambda x: len(x), reverse=True)
 
     print("Valuable flexions: {}".format(len(flexions)))
 
@@ -138,6 +139,11 @@ def build_stem_data():
 
     with open("./build/flexions.txt", "w", encoding="utf8") as flexions_file:
         for flexion in flexions:
+            flexion = flexion.strip()
+
+            if " " in flexion:
+                continue
+
             flexions_file.write(flexion + "\n")
 
     with open(

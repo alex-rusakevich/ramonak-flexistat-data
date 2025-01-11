@@ -301,12 +301,12 @@
         },
         "ramonak": {
             "hashes": [
-                "sha256:3a2567afabb57740762d4f38d6bf9491bba40050f9fe9c444a1a3e5b5d85c49d",
-                "sha256:90c2141d416092fe0d6459642aae227bdee28261cecdbe414b025b2282173733"
+                "sha256:04a507edd2ca4318e85e6bb08fbf05f9278897f53fd3912da4ba67bce4d4f993",
+                "sha256:9fc8c63936897d8d696c43a0d9fb4ae996600ffb82c150362f5fa52e4e33fd38"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.8'",
-            "version": "==0.0.1"
+            "version": "==0.1.0"
         },
         "requests": {
             "hashes": [

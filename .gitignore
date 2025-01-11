@@ -174,4 +174,5 @@ cython_debug/
 /.vim/
 flexions1.py
 flexions2.py
+.alerus/
 # endregion
