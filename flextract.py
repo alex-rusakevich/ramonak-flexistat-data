@@ -1,5 +1,4 @@
 import gc
-import itertools
 import zipfile
 from collections import Counter
 from datetime import datetime
@@ -12,38 +11,11 @@ from ramonak.packages.actions import package_path as rm_pkg_path
 from ramonak.packages.actions import require
 from ramonak.stemmer import SimpleStemmer
 
+from stemdata.find_flexions import find_flexions
+
 require("@bnkorpus/grammar_db/20230920")
 
 fix_lang_phenomenons = SimpleStemmer.fix_lang_phenomenons
-
-
-def commonprefix(words):
-    def all_same(x):
-        return all(x[0] == y for y in x)
-
-    char_tuples = zip(*words)
-    prefix_tuples = itertools.takewhile(all_same, char_tuples)
-    return "".join(x[0] for x in prefix_tuples)
-
-
-def find_flexions(words) -> List[str]:
-    common_prefix = commonprefix(words)
-
-    flexions = []
-
-    if common_prefix == "":
-        return flexions
-
-    for word in words:
-        if word == common_prefix:
-            continue
-
-        if len(common_prefix) - len(word) == 1:
-            continue
-
-        flexions.append(word[len(common_prefix) :])
-
-    return flexions
 
 
 def extract_stem_data(ncorp_xml_path) -> Tuple[List[str], List[str]]:
@@ -74,9 +46,9 @@ def extract_stem_data(ncorp_xml_path) -> Tuple[List[str], List[str]]:
         for form in variant.findall("Form"):
             processed_forms.append(form.text.replace("+", ""))
 
-        all_word_forms = (processed_variant_lemma, *processed_forms)
+        all_word_forms = [processed_variant_lemma, *processed_forms]
 
-        flexions = find_flexions([fix_lang_phenomenons(w) for w in all_word_forms])
+        flexions = find_flexions(all_word_forms)
         flexions_in_file.extend(flexions)
 
     return flexions_in_file, unchangeable_words
@@ -117,15 +89,15 @@ def build_stem_data():
         rm_pkg_path("@bnkorpus/grammar_db/20230920")
     )
 
-    # Occurance first (more...less), length (max...min) - second
+    # Length > Occurance
     flexions_and_count = sorted(flexions_and_count, key=lambda x: x[1], reverse=True)
 
-    flexions_total = sum(i[1] for i in flexions_and_count)
-    flexions_and_count = (
-        filter(  # Leave only flexions, which take at least 0.01% of all flexions
-            lambda x: round(x[1] / flexions_total, 4) > 0, flexions_and_count
-        )
-    )
+    # flexions_total = sum(i[1] for i in flexions_and_count)
+    # flexions_and_count = (
+    #     filter(  # Leave only flexions, which take at least 0.01% of all flexions
+    #         lambda x: round(x[1] / flexions_total, 4) > 0, flexions_and_count
+    #     )
+    # )
 
     flexions = list(i[0] for i in flexions_and_count)
     flexions = sorted(flexions, key=lambda x: len(x), reverse=True)
