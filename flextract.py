@@ -46,7 +46,7 @@ def extract_stem_data(ncorp_xml_path) -> Tuple[List[str], List[str]]:
         for form in variant.findall("Form"):
             processed_forms.append(form.text.replace("+", ""))
 
-        all_word_forms = [processed_variant_lemma, *processed_forms]
+        all_word_forms = (processed_variant_lemma, *processed_forms)
 
         flexions = find_flexions(all_word_forms)
         flexions_in_file.extend(flexions)

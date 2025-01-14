@@ -175,4 +175,6 @@ cython_debug/
 flexions1.py
 flexions2.py
 .alerus/
+/stemdata/*.c
+/stemdata/*.o
 # endregion
