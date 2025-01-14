@@ -11,6 +11,7 @@ from ramonak.packages.actions import package_path as rm_pkg_path
 from ramonak.packages.actions import require
 
 from stemdata.find_flexions import find_flexions
+from stemdata.utils import timing_decorator
 
 require("@bnkorpus/grammar_db/20230920")
 
@@ -19,7 +20,7 @@ def extract_stem_data(ncorp_xml_path) -> Tuple[List[str], List[str]]:
     f = etree.parse(ncorp_xml_path)
     root = f.getroot()
 
-    print("File has been loaded in lxml")
+    print("File has been fully loaded into memory. Processing...")
 
     flexions_in_file = []
     unchangeable_words = []
@@ -51,31 +52,58 @@ def extract_stem_data(ncorp_xml_path) -> Tuple[List[str], List[str]]:
     return flexions_in_file, unchangeable_words
 
 
+def move_all_to_unchangeable(xml_file):
+    f = etree.parse(xml_file)
+    root = f.getroot()
+
+    print("File has been fully loaded into memory. Getting unchangeable words...")
+
+    unchangeable_words = []
+
+    for paradigm in root.findall("Paradigm"):
+        unchangeable_words.append(paradigm.get("lemma").replace("+", ""))
+
+    return tuple(set(unchangeable_words))
+
+
 def xml_stem_data_stats(xml_dir_path: str) -> Tuple[Tuple[str, int], Tuple[str]]:
     all_flexions = []
     unchangeable_words = []
 
     for xml_file in Path(xml_dir_path).glob("*.xml"):
-        print("Processing", xml_file)
-        file_stem_data = extract_stem_data(xml_file)
+        pos = Path(xml_file).stem[:1]
+        print("Processing '{}', POS is {}".format(xml_file, pos))
 
-        file_flexions = set(file_stem_data[0])
-        file_unchangeable = set(file_stem_data[1])
+        file_flexions = ()
+        file_unchangeable = ()
+
+        # Move all to unchangeable: Прыслоўе Злучнік Прыназоўнік Часціца Выклічнік
+        if pos in "RCIEY":
+            file_unchangeable = move_all_to_unchangeable(xml_file)
+        else:
+            file_stem_data = extract_stem_data(xml_file)
+            file_flexions = tuple(set(file_stem_data[0]))
+            file_unchangeable = tuple(set(file_stem_data[1]))
 
         all_flexions.extend(file_flexions)
         unchangeable_words.extend(file_unchangeable)
 
         # region Write data to corresponding file
+        file_flexions = filter(bool, file_flexions)
+        file_flexions = sorted(file_flexions, key=len, reverse=True)
+
+        file_unchangeable = filter(bool, file_unchangeable)
+        file_unchangeable = sorted(file_unchangeable, key=len)
+
         xml_file_stem = Path(xml_file).stem
-        folder = Path("./build", xml_file_stem).mkdir(parents=True, exists_ok=True)
+        folder = Path("./generated_data", xml_file_stem)
+        folder.mkdir(parents=True, exist_ok=True)
 
         (folder / "unchangeable.txt").write_text(
-            "\n".join(file_unchangeable)
+            "\n".join(file_unchangeable), encoding="utf8"
         )
 
-        (folder / "flexions.txt").write_text(
-            "\n".join(file_flexions)
-        )
+        (folder / "flexions.txt").write_text("\n".join(file_flexions), encoding="utf8")
         # endregion
 
         gc.collect()
@@ -98,6 +126,7 @@ def xml_stem_data_stats(xml_dir_path: str) -> Tuple[Tuple[str, int], Tuple[str]]
     return flexions_and_count, unchangeable_words
 
 
+@timing_decorator
 def build_stem_data():
     flexions_and_count, unchangeable_words = xml_stem_data_stats(
         rm_pkg_path("@bnkorpus/grammar_db/20230920")
@@ -118,12 +147,12 @@ def build_stem_data():
 
     print("Valuable flexions: {}".format(len(flexions)))
 
-    Path("./build").mkdir(exist_ok=True, parents=True)
+    Path("./generated_data").mkdir(exist_ok=True, parents=True)
 
     unchangeable_words = sorted(unchangeable_words)
     unchangeable_words = sorted(unchangeable_words, key=lambda x: len(x))
 
-    with open("./build/flexions.txt", "w", encoding="utf8") as flexions_file:
+    with open("./generated_data/flexions.txt", "w", encoding="utf8") as flexions_file:
         for flexion in flexions:
             flexion = flexion.strip()
 
@@ -133,7 +162,7 @@ def build_stem_data():
             flexions_file.write(flexion + "\n")
 
     with open(
-        "./build/unchangeable_words.txt", "w", encoding="utf8"
+        "./generated_data/unchangeable.txt", "w", encoding="utf8"
     ) as unchangeable_words_file:
         for w in unchangeable_words:
             unchangeable_words_file.write(w + "\n")
@@ -156,8 +185,8 @@ def zip_results():
         compression=zipfile.ZIP_DEFLATED,
         compresslevel=9,
     ) as zip_ref:
-        zip_ref.write("build/flexions.txt", arcname="flexions.txt")
-        zip_ref.write("build/unchangeable_words.txt", arcname="unchangeable_words.txt")
+        zip_ref.write("generated_data/flexions.txt", arcname="flexions.txt")
+        zip_ref.write("generated_data/unchangeable.txt", arcname="unchangeable.txt")
 
     print("OK")
 

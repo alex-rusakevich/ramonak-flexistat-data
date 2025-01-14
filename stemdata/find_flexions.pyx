@@ -1,6 +1,17 @@
 from typing import List, Tuple
 
-from stemdata.utils import commonprefix
+
+cdef str commonprefix(str str1, str str2):
+    prefix = ""
+    min_length = min(len(str1), len(str2))
+    
+    for i in range(min_length):
+        if str1[i] == str2[i]:
+            prefix += str1[i]
+        else:
+            break
+    
+    return prefix
 
 
 cpdef tuple[str] find_flexions(tuple[str] words):
@@ -14,7 +25,7 @@ cpdef tuple[str] find_flexions(tuple[str] words):
             if word == word_comp:
                 continue
 
-            words_common_prefix = commonprefix((word, word_comp))
+            words_common_prefix = commonprefix(word, word_comp)
 
             if form_variants.get(words_common_prefix):
                 form_variants[words_common_prefix] += [word, word_comp]
@@ -23,7 +34,7 @@ cpdef tuple[str] find_flexions(tuple[str] words):
     # endregion
 
     # region Round 2. Remove redundant common prefixes
-    cdef list[str] ignored_prefixes = []
+    cdef set[str] ignored_prefixes = set()
 
     for common_prefix in form_variants.keys():
         for ref_common_prefix in form_variants.keys():
@@ -32,9 +43,8 @@ cpdef tuple[str] find_flexions(tuple[str] words):
 
             if (
                 ref_common_prefix.startswith(common_prefix)
-                and common_prefix not in ignored_prefixes
             ):
-                ignored_prefixes.append(common_prefix)
+                ignored_prefixes.add(common_prefix)
 
     for ignored_prefix in ignored_prefixes:
         del form_variants[ignored_prefix]

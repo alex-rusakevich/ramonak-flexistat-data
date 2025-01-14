@@ -1,10 +1,13 @@
-import itertools
+import time
 
 
-def commonprefix(words):
-    def all_same(x):
-        return all(x[0] == y for y in x)
+def timing_decorator(func):
+    def wrapper(*args, **kwargs):
+        start_time = time.time()  # Record the start time
+        result = func(*args, **kwargs)  # Call the original function
+        end_time = time.time()  # Record the end time
+        execution_time = end_time - start_time  # Calculate the execution time
+        print(f"Execution time of '{func.__name__}': {execution_time:.6f} seconds")
+        return result  # Return the result of the original function
 
-    char_tuples = zip(*words)
-    prefix_tuples = itertools.takewhile(all_same, char_tuples)
-    return "".join(x[0] for x in prefix_tuples)
+    return wrapper

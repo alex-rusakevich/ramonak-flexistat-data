@@ -177,4 +177,5 @@ flexions2.py
 .alerus/
 /stemdata/*.c
 /stemdata/*.o
+/generated_data/
 # endregion
