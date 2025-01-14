@@ -9,13 +9,10 @@ import pytz
 from lxml import etree
 from ramonak.packages.actions import package_path as rm_pkg_path
 from ramonak.packages.actions import require
-from ramonak.stemmer import SimpleStemmer
 
 from stemdata.find_flexions import find_flexions
 
 require("@bnkorpus/grammar_db/20230920")
-
-fix_lang_phenomenons = SimpleStemmer.fix_lang_phenomenons
 
 
 def extract_stem_data(ncorp_xml_path) -> Tuple[List[str], List[str]]:
@@ -62,8 +59,25 @@ def xml_stem_data_stats(xml_dir_path: str) -> Tuple[Tuple[str, int], Tuple[str]]
         print("Processing", xml_file)
         file_stem_data = extract_stem_data(xml_file)
 
-        all_flexions.extend(file_stem_data[0])
-        unchangeable_words.extend(file_stem_data[1])
+        file_flexions = set(file_stem_data[0])
+        file_unchangeable = set(file_stem_data[1])
+
+        all_flexions.extend(file_flexions)
+        unchangeable_words.extend(file_unchangeable)
+
+        # region Write data to corresponding file
+        xml_file_stem = Path(xml_file).stem
+        folder = Path("./build", xml_file_stem).mkdir(parents=True, exists_ok=True)
+
+        (folder / "unchangeable.txt").write_text(
+            "\n".join(file_unchangeable)
+        )
+
+        (folder / "flexions.txt").write_text(
+            "\n".join(file_flexions)
+        )
+        # endregion
+
         gc.collect()
 
     print(
