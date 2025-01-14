@@ -1,4 +1,5 @@
 import gc
+import shutil
 import zipfile
 from collections import Counter
 from datetime import datetime
@@ -25,29 +26,31 @@ def extract_stem_data(ncorp_xml_path) -> Tuple[List[str], List[str]]:
     flexions_in_file = []
     unchangeable_words = []
 
-    for variant in root.findall("Paradigm/Variant"):
-        processed_variant_lemma = variant.get("lemma").replace("+", "")
-        variant_forms = variant.findall("Form")
-
-        processed_forms = []
-
-        if "-" in processed_variant_lemma or " " in processed_variant_lemma:
+    for paradigm in root.findall("Paradigm"):
+        if "0" in paradigm.get("tag", ""):  # Unchangeable paradigm
+            paradigm_lemma = paradigm.get("lemma").replace("+", "")
+            unchangeable_words.append(paradigm_lemma)
             continue
 
-        if (
-            len(variant_forms) == 1
-            and variant_forms[0].text.replace("+", "") == processed_variant_lemma
-        ):
-            unchangeable_words.append(processed_variant_lemma)
-            continue
+        for variant in paradigm.findall("Variant"):
+            processed_variant_lemma = variant.get("lemma").replace("+", "")
+            variant_forms = variant.findall("Form")
 
-        for form in variant.findall("Form"):
-            processed_forms.append(form.text.replace("+", ""))
+            processed_forms = []
 
-        all_word_forms = (processed_variant_lemma, *processed_forms)
+            if "-" in processed_variant_lemma or " " in processed_variant_lemma:
+                continue
 
-        flexions = find_flexions(all_word_forms)
-        flexions_in_file.extend(flexions)
+            if len(variant_forms) == 1:
+                continue
+
+            for form in variant_forms:
+                processed_forms.append(form.text.replace("+", ""))
+
+            all_word_forms = (processed_variant_lemma, *processed_forms)
+
+            flexions = find_flexions(all_word_forms)
+            flexions_in_file.extend(flexions)
 
     return flexions_in_file, unchangeable_words
 
@@ -77,13 +80,15 @@ def xml_stem_data_stats(xml_dir_path: str) -> Tuple[Tuple[str, int], Tuple[str]]
         file_flexions = ()
         file_unchangeable = ()
 
-        # Move all to unchangeable: Прыслоўе Злучнік Прыназоўнік Часціца Выклічнік
-        if pos in "RCIEY":
+        # region Process file
+        # Move all to unchangeable: Злучнік Прыназоўнік Часціца Выклічнік
+        if pos in "CIEY":
             file_unchangeable = move_all_to_unchangeable(xml_file)
         else:
             file_stem_data = extract_stem_data(xml_file)
             file_flexions = tuple(set(file_stem_data[0]))
             file_unchangeable = tuple(set(file_stem_data[1]))
+        # endregion
 
         all_flexions.extend(file_flexions)
         unchangeable_words.extend(file_unchangeable)
@@ -192,6 +197,9 @@ def zip_results():
 
 
 def main():
+    if Path("./generated_data").exists():
+        shutil.rmtree("./generated_data")
+
     build_stem_data()
     zip_results()
 
