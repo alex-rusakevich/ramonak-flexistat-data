@@ -1,6 +1,5 @@
 import gc
 import shutil
-import zipfile
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
@@ -137,7 +136,7 @@ def build_stem_data():
         rm_pkg_path("@bnkorpus/grammar_db/20230920")
     )
 
-    # Length > Occurance
+    # Occurance first, length second
     flexions_and_count = sorted(flexions_and_count, key=lambda x: x[1], reverse=True)
 
     # flexions_total = sum(i[1] for i in flexions_and_count)
@@ -157,17 +156,19 @@ def build_stem_data():
     unchangeable_words = sorted(unchangeable_words)
     unchangeable_words = sorted(unchangeable_words, key=lambda x: len(x))
 
-    with open("./generated_data/flexions.txt", "w", encoding="utf8") as flexions_file:
+    with open(
+        "./generated_data/all_flexions.txt", "w", encoding="utf8"
+    ) as flexions_file:
         for flexion in flexions:
             flexion = flexion.strip()
 
-            if " " in flexion:
+            if " " in flexion or flexion == "":
                 continue
 
             flexions_file.write(flexion + "\n")
 
     with open(
-        "./generated_data/unchangeable.txt", "w", encoding="utf8"
+        "./generated_data/all_unchangeable.txt", "w", encoding="utf8"
     ) as unchangeable_words_file:
         for w in unchangeable_words:
             unchangeable_words_file.write(w + "\n")
@@ -180,18 +181,11 @@ def zip_results():
     minsk_now = datetime.now(tz)
     file_date_mark = f"{minsk_now:%Y%m%d_%H%M%S}"
 
-    file_name = "./dist/STEMDATA_{}.zip".format(file_date_mark)
+    file_name = "./dist/STEMDATA_{}".format(file_date_mark)
 
     print("Packing the results into '{}'...".format(file_name), end=" ")
 
-    with zipfile.ZipFile(
-        file_name,
-        "w",
-        compression=zipfile.ZIP_DEFLATED,
-        compresslevel=9,
-    ) as zip_ref:
-        zip_ref.write("generated_data/flexions.txt", arcname="flexions.txt")
-        zip_ref.write("generated_data/unchangeable.txt", arcname="unchangeable.txt")
+    shutil.make_archive(file_name, "zip", "./generated_data")
 
     print("OK")
 
